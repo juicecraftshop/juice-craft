@@ -1,5 +1,5 @@
 "use client";
-import {api,clearReadCache} from './api';
+import {api,clearReadCache,restoreSession} from './api';
 import {useState,useEffect,useCallback,useRef,Fragment,Children,cloneElement,isValidElement,FormEvent} from 'react';
 import {ArrowLeft,Menu,MoreHorizontal,ArrowRight,ArrowUpRight,ArrowDownLeft,LockKeyhole,Eye,EyeOff,LayoutDashboard,ShoppingBag,Package,PackagePlus,GlassWater,Trash2,Receipt,BarChart3,Settings,LogOut,Plus,Search,Download,Printer,ChevronRight,ChevronLeft,Check,Minus,X,Pencil,History,AlertTriangle,IndianRupee,Wallet,ShoppingBasket,TrendingUp,CalendarDays,RefreshCw,Leaf,IceCreamBowl,LoaderCircle,CheckCircle2} from 'lucide-react';
 import {SidebarProvider,Sidebar,SidebarHeader,SidebarContent,SidebarFooter,SidebarMenu,SidebarMenuItem,SidebarMenuButton,SidebarInset,SidebarTrigger,useSidebar} from '@/components/ui/sidebar';
@@ -34,8 +34,8 @@ export default function Shop(){
  const[boot,setBoot]=useState<Row|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const[page,setPage]=useState('dashboard'),[tick,setTick]=useState(0);const navDepth=useRef(0);
  const refresh=useCallback(async()=>{const b=await api('bootstrap');setBoot(b);setTick(t=>t+1)},[]);
- useEffect(()=>{const leave=()=>setBoot(null);window.addEventListener('jc:logout',leave);if(sessionStorage.getItem('jc_session')){refresh().catch(e=>{if(!e.message.includes('sign in'))setError(e.message)}).finally(()=>setLoading(false))}else setLoading(false);return()=>window.removeEventListener('jc:logout',leave)},[refresh]);
- useEffect(()=>{const sync=()=>{if(document.visibilityState==='visible'&&sessionStorage.getItem('jc_session')){clearReadCache();refresh().catch(()=>{})}};document.addEventListener('visibilitychange',sync);return()=>document.removeEventListener('visibilitychange',sync)},[refresh]);
+ useEffect(()=>{const leave=()=>setBoot(null);const syncSession=(e:StorageEvent)=>{if(e.key==='jc_session'){clearReadCache();if(!e.newValue)setBoot(null);else refresh().catch(()=>{})}};window.addEventListener('storage',syncSession);window.addEventListener('jc:logout',leave);if(restoreSession()){refresh().catch(e=>{if(!e.message.includes('sign in'))setError(e.message)}).finally(()=>setLoading(false))}else setLoading(false);return()=>{window.removeEventListener('jc:logout',leave);window.removeEventListener('storage',syncSession)}},[refresh]);
+ useEffect(()=>{const sync=()=>{if(document.visibilityState==='visible'&&localStorage.getItem('jc_session')){clearReadCache();refresh().catch(()=>{})}};document.addEventListener('visibilitychange',sync);return()=>document.removeEventListener('visibilitychange',sync)},[refresh]);
  useEffect(()=>{const sync=()=>{navDepth.current=window.history.state?.jcDepth??0;const p=window.location.hash.slice(1);setPage(navigation.some(n=>n[0]===p)?p:'dashboard')};sync();window.addEventListener('popstate',sync);window.addEventListener('hashchange',sync);return()=>{window.removeEventListener('popstate',sync);window.removeEventListener('hashchange',sync)}},[]);
  const go=(p:string)=>{if(p===page)return;navDepth.current++;window.history.pushState({jcDepth:navDepth.current},'', '#'+p);setPage(p);window.scrollTo({top:0,behavior:'instant'})};
  const back=()=>{if(navDepth.current>0){navDepth.current--;window.history.back()}else go('dashboard')};

@@ -4,7 +4,8 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {api,clearReadCache} from '../src/api.ts';
 const storage=new Map([['jc_session','admin-test']]);
-globalThis.sessionStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
+globalThis.localStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
+globalThis.sessionStorage={getItem:()=>null,removeItem:()=>{}};
 let signedOut=0;globalThis.window={dispatchEvent:()=>signedOut++};
 test('cache reuses reads, deduplicates, expires, invalidates writes and isolates sessions',async()=>{
  let calls=0;globalThis.fetch=async()=>{calls++;return Response.json({value:calls})};
@@ -33,4 +34,12 @@ test('service worker caches public hashed assets only; auth, HTML and posts are 
  const request={url:'https://example.com/juice-craft/assets/app-123.js',method:'GET'};
  async function visit(){let response;const tasks=[];handlers.fetch({request,respondWith:p=>response=p,waitUntil:p=>tasks.push(p)});await response;await Promise.all(tasks)}
  await visit();await visit();assert.equal(calls,1);
+});
+
+test('login persists across reopening and logout removes the saved session',async()=>{
+ globalThis.fetch=async()=>Response.json({ok:true,session:'persistent-admin'});
+ await api('login',{username:'admin',password:'test'});assert.equal(localStorage.getItem('jc_session'),'persistent-admin');
+ clearReadCache();let token;globalThis.fetch=async(_url,init)=>{token=init.headers['X-Shop-Session'];return Response.json({ok:true})};
+ await api('bootstrap');assert.equal(token,'persistent-admin');
+ await api('logout',{});assert.equal(localStorage.getItem('jc_session'),null);
 });

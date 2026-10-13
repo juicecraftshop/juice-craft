@@ -1,0 +1,25 @@
+{
+  "id": "./",
+  "name": "JUICE CRAFT",
+  "short_name": "JUICE CRAFT",
+  "description": "Sales, stock and billing for JUICE CRAFT",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#151A1F",
+  "theme_color": "#151A1F",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

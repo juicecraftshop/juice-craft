@@ -1,6 +1,6 @@
 // Isolated synthetic UI fixtures. Imported only by Vite's development build.
 export function installFixtures(){
- sessionStorage.setItem('jc_session','development-fixture-only');
+ localStorage.setItem('jc_session','development-fixture-only');
  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const masters=[{id:'b1',kind:'brand',name:'Arun',active:1},{id:'b2',kind:'brand',name:'Dairy Day',active:1},{id:'c1',kind:'category',name:'Popsicles',active:1},{id:'c2',kind:'category',name:'Family packs',active:1},{id:'m1',kind:'prepared',name:'Mojito',active:1},{id:'m2',kind:'prepared',name:'Milkshake',active:1}];
  const products:any[]=[{id:'p1',name:'Chocolate Cone',brand:'b1',brand_name:'Arun',category:'c1',category_name:'Popsicles',price:4500,cost:3000,qty:24,low:5,variant:'100 ml',active:1,kind:'packaged'},{id:'p2',name:'Mango Popsicle',brand:'b2',brand_name:'Dairy Day',category:'c1',category_name:'Popsicles',price:2500,cost:1700,qty:4,low:5,variant:'60 ml',active:1,kind:'packaged'},{id:'p3',name:'Vanilla Family Pack',brand:'b1',brand_name:'Arun',category:'c2',category_name:'Family packs',price:16000,cost:11000,qty:12,low:3,variant:'500 ml',active:1,kind:'packaged'},{id:'p4',name:'Classic Mojito',category:'m1',category_name:'Mojito',price:8000,cost:0,qty:0,low:0,active:1,kind:'prepared',brand_name:''},{id:'p5',name:'Oreo Milkshake',category:'m2',category_name:'Milkshake',price:12000,cost:0,qty:0,low:0,active:1,kind:'prepared',brand_name:''}];

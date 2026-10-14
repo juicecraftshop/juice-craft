@@ -3,7 +3,7 @@ import postgres from 'npm:postgres@3.4.7';
 import {context,response} from './server.ts';
 import {GET,POST} from './routes.ts';
 const sql=postgres(Deno.env.get('SUPABASE_DB_URL')!,{prepare:false,max:1,ssl:'require',idle_timeout:20,connect_timeout:15,types:{bigint:{to:20,from:[20,1700],serialize:(v:any)=>String(v),parse:(v:string)=>Number(v)}}});
-const corsBase={'Access-Control-Allow-Headers':'content-type,x-shop-session','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin','Cache-Control':'no-store'};
+const corsBase={'Access-Control-Allow-Headers':'content-type,x-shop-session','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Max-Age':'600','Vary':'Origin','Cache-Control':'no-store'};
 class Rejected extends Error{constructor(public result:Response){super('Request rejected')}}
 Deno.serve(async(req:Request)=>{
  const origin=req.headers.get('origin');
@@ -15,7 +15,7 @@ Deno.serve(async(req:Request)=>{
  try{
   let action='';if(req.method==='POST'){const body=await req.clone().text();if(body.length>100000)throw new Rejected(response({error:'Request too large.'},413));action=JSON.parse(body).action;}
   result=await sql.begin(async tx=>{
-   await tx.unsafe('SET LOCAL ROLE juicecraft_app');await tx.unsafe('SET LOCAL search_path TO juicecraft, pg_catalog');await tx.unsafe("SET LOCAL statement_timeout TO '15s'");
+   await tx.unsafe("SET LOCAL ROLE juicecraft_app; SET LOCAL search_path TO juicecraft, pg_catalog; SET LOCAL statement_timeout TO '15s'");
    // Serialize writes so stock checks, bill numbers, idempotency and writes are atomic.
    if(req.method==='POST')await tx`SELECT pg_advisory_xact_lock(748290153)`;
    return await context.run(tx,async()=>{const r=await(req.method==='POST'?POST(req):GET(req));if(r.status>=400&&action!=='login')throw new Rejected(r);return r});

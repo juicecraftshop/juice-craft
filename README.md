@@ -27,7 +27,7 @@ Development-only `/__design` and `/__responsive` routes use synthetic in-memory 
 
 In repository Settings → Pages, set **Source** to **GitHub Actions** once. Pushes to `main` affecting the frontend or workflow then publish automatically. The workflow uses the official GitHub Pages actions. No paid hosting configuration is required by this repository.
 
-The Supabase function source and schema are in `supabase/`. The function uses its built-in server database credential; no database password, service-role key or admin password belongs in the browser or repository. Deploy with JWT verification disabled only because this function implements its own hashed admin sessions and verifies every protected request. Anonymous REST access to the private shop schema is revoked. CORS permits only `https://juicecraftshop.github.io`.
+The Supabase function source and schema are in `supabase/`. The function uses its built-in server database credential; no database password, service-role key or admin password belongs in the browser or repository. Deploy with JWT verification disabled only because this function implements its own hashed admin sessions and verifies every protected request. Anonymous REST access to the private shop schema is revoked. CORS permits the exact production origins `https://juicecraftshop.github.io` and `https://juicecraft.vercel.app`.
 
 Sessions persist on the device until sign-out, browser data removal, or server revocation. Session tokens are hashed in the database. Sign-out revokes the server session. Database transactions and a transaction-level shop lock prevent overselling, duplicate retries and conflicting bill numbers.
 

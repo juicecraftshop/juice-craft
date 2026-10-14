@@ -43,3 +43,12 @@ test('login persists across reopening and logout removes the saved session',asyn
  await api('bootstrap');assert.equal(token,'persistent-admin');
  await api('logout',{});assert.equal(localStorage.getItem('jc_session'),null);
 });
+test('successful writes provide fresh inventory and receipt without follow-up fetches',async()=>{
+ storage.set('jc_session','save-test');clearReadCache();let calls=0;
+ const bootstrap={products:[{id:'p',qty:7}]},bill={id:'receipt-1',lines:[{qty:3}]};
+ globalThis.fetch=async()=>{calls++;return Response.json({ok:true,bootstrap,bill})};
+ await api('sale',{cart:[]});assert.deepEqual(await api('bootstrap'),bootstrap);assert.deepEqual(await api('bill&id=receipt-1'),bill);assert.equal(calls,1);
+ await api('bootstrap');assert.equal(calls,2); // snapshot is consumed once
+ globalThis.fetch=async()=>Response.json({error:'Save failed',bootstrap},{status:503});await assert.rejects(api('stock',{}));
+ let requested=false;globalThis.fetch=async()=>{requested=true;return Response.json({products:[]})};await api('bootstrap');assert.equal(requested,true);
+});

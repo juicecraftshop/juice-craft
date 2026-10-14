@@ -16,9 +16,11 @@ export async function api(action:string,data?:Row):Promise<any>{
  if(write)clearReadCache();
  const cacheable=!write&&!!session&&action!=='bootstrap'&&!action.startsWith('export');
  const key=action;
+ if(!write&&action==='bootstrap'){const snapshot=reads.get('bootstrap');reads.delete('bootstrap');if(snapshot&&snapshot.expires>Date.now())return snapshot.value}
  const epoch=generation;
  if(cacheable){const hit=reads.get(key);if(hit&&hit.expires>Date.now())return hit.value;const flight=pending.get(key);if(flight)return flight}
  const request=(async()=>{
+  let completed:any=null;
   try{
    const headers:Record<string,string>={};if(session)headers['X-Shop-Session']=session;if(write)headers['Content-Type']='application/json';
    const r=await fetch(write?SHOP_API:SHOP_API+'?action='+action,{method:write?'POST':'GET',headers,cache:'no-store',body:write?JSON.stringify({action,...data}):undefined});
@@ -27,8 +29,8 @@ export async function api(action:string,data?:Row):Promise<any>{
    if(action==='login'&&j.session)localStorage.setItem('jc_session',j.session);
    if(action==='logout')localStorage.removeItem('jc_session');
    if(cacheable&&epoch===generation&&session===localStorage.getItem('jc_session')){if(reads.size>=40)reads.delete(reads.keys().next().value!);reads.set(key,{value:j,expires:Date.now()+15000})}
-   return j;
-  }finally{if(write)clearReadCache();else if(epoch===generation)pending.delete(key)}
+   completed=j;return j;
+  }finally{if(write){clearReadCache();if(completed&&session===localStorage.getItem('jc_session')){const expires=Date.now()+15000;if(completed.bootstrap)reads.set('bootstrap',{value:completed.bootstrap,expires});if(completed.bill)reads.set('bill&id='+encodeURIComponent(completed.bill.id),{value:completed.bill,expires})}}else if(epoch===generation)pending.delete(key)}
  })();
  if(cacheable)pending.set(key,request);
  return request;

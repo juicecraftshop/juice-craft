@@ -52,3 +52,15 @@ test('successful writes provide fresh inventory and receipt without follow-up fe
  globalThis.fetch=async()=>Response.json({error:'Save failed',bootstrap},{status:503});await assert.rejects(api('stock',{}));
  let requested=false;globalThis.fetch=async()=>{requested=true;return Response.json({products:[]})};await api('bootstrap');assert.equal(requested,true);
 });
+
+test('incremental save merges changed items and opens receipt without catalogue reload',async()=>{
+ storage.set('jc_session','incremental-test');clearReadCache();let calls=0;
+ globalThis.fetch=async(url,init)=>{
+  calls++;const parsed=new URL(url);assert.equal(parsed.searchParams.get('forceFunctionRegion'),'ap-northeast-1');
+  if(init.method==='POST'){assert.equal(parsed.searchParams.get('incremental'),'1');return Response.json({ok:true,products:[{id:'p',name:'Ice cream',qty:7}],bill:{id:'delta-bill',lines:[{qty:3}]}})}
+  return Response.json({products:[{id:'p',name:'Ice cream',qty:10},{id:'q',name:'Juice',qty:0}],masters:[],settings:{name:'Shop'}});
+ };
+ await api('bootstrap');await api('sale',{cart:[{id:'p',qty:3}]});const boot=await api('bootstrap');
+ assert.equal(boot.products.find(p=>p.id==='p').qty,7);assert.equal(boot.products.find(p=>p.id==='q').qty,0);
+ assert.equal((await api('bill&id=delta-bill')).id,'delta-bill');assert.equal(calls,2);
+});

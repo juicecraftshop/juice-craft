@@ -1,5 +1,5 @@
 type Row=Record<string,any>;
-const SHOP_API='https://esvtvszrkhpdeuiorkjz.supabase.co/functions/v1/juicecraft-shop';
+const SHOP_API=typeof location!=='undefined'&&location.hostname==='juicecraft.vercel.app'?'/shop-api':'https://esvtvszrkhpdeuiorkjz.supabase.co/functions/v1/juicecraft-shop';
 const reads=new Map<string,{value:any;expires:number}>();
 const pending=new Map<string,Promise<any>>();
 let generation=0;

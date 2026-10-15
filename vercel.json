@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {"source":"/shop-api","destination":"https://esvtvszrkhpdeuiorkjz.supabase.co/functions/v1/juicecraft-shop"}
+  ],
+  "headers": [
+    {"source":"/shop-api","headers":[{"key":"Cache-Control","value":"private, no-store"}]}
+  ]
+}

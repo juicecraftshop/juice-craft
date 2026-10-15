@@ -1,7 +1,16 @@
+let fontPromise:Promise<{file:string;style:string;data:string}[]>|undefined;
+function loadBillFonts(){
+ return fontPromise??=(Promise.all([['DejaVuSans.ttf','normal'],['DejaVuSans-Bold.ttf','bold']].map(async([file,style])=>{
+  const r=await fetch(import.meta.env.BASE_URL+'fonts/'+file);if(!r.ok)throw new Error('Bill font unavailable');
+  const bytes=new Uint8Array(await r.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  return {file,style,data:btoa(binary)};
+ })).catch(e=>{fontPromise=undefined;throw e}));
+}
+export async function prepareBillDownload(){await Promise.all([import('jspdf'),loadBillFonts()])}
 export async function downloadBill(b:any){
 const {jsPDF}=await import('jspdf');
 const doc=new jsPDF({unit:'mm',format:'a5',compress:true,putOnlyUsedFonts:true});
-for(const [file,style] of [['DejaVuSans.ttf','normal'],['DejaVuSans-Bold.ttf','bold']]){const r=await fetch(import.meta.env.BASE_URL+'fonts/'+file);if(!r.ok)throw new Error('Bill font unavailable');const bytes=new Uint8Array(await r.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));doc.addFileToVFS(file,btoa(binary));doc.addFont(file,'CraftSans',style)}doc.setFont('CraftSans','normal');const w=148,margin=14;let y=16;const green:[number,number,number]=[21,26,31],muted:[number,number,number]=[90,94,98];
+for(const {file,style,data} of await loadBillFonts()){doc.addFileToVFS(file,data);doc.addFont(file,'CraftSans',style)}doc.setFont('CraftSans','normal');const w=148,margin=14;let y=16;const green:[number,number,number]=[21,26,31],muted:[number,number,number]=[90,94,98];
 const text=(s:string,x:number,yy:number,size=10,color=green,align:any='left')=>{doc.setFontSize(size);doc.setTextColor(...color);doc.text(s,x,yy,{align})};
 doc.setDrawColor(233,197,103);doc.setFillColor(245,200,66);doc.roundedRect(w/2-11,y,22,22,4,4,'F');doc.setFont('CraftSans','bold');text('JC',w/2,y+15,20,green,'center');y+=32;
 doc.setFont('CraftSans','bold');const title=doc.splitTextToSize(b.shop.name,120);text(title,w/2,y,19,green,'center');y+=title.length*7;doc.setFont('CraftSans','normal');text('JUICES  /  SHAKES  /  ICE POPS',w/2,y,7,muted,'center');y+=7;

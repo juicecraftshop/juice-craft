@@ -38,6 +38,7 @@ try{
  await ok('cancel',{id:'sale-1',reason:'Test return'});await ok('cancel',{id:'sale-1',reason:'Test return'});assert.equal((await ok('bootstrap')).products.find(p=>p.id===pkg).qty,18);assert.equal((await ok('report&from='+day+'&to='+day)).totals.revenue,0);pass('Cancellation restores stock once and removes revenue');
  await ok('adjustment',{key:'adjust-1',product:pkg,qty:16,date:day,note:'Physical count'});assert.equal((await ok('bootstrap')).products.find(p=>p.id===pkg).qty,16);pass('Physical stock adjustment');
  assert.ok(Array.isArray(await ok('export&from='+day+'&to='+day)));pass('Report export');
+ const onlyDrink=await ok('sale',{key:'prepared-only',cart:[{id:drink,qty:1}],payment:'Cash',date:day});assert.equal(onlyDrink.bill.total,2000);assert.equal(onlyDrink.bill.lines.length,1);assert.equal((await sql`SELECT count(*) n FROM juicecraft.movements WHERE sale='prepared-only'`)[0].n,0);pass('Prepared-only bill writes lines without stock movements');
  await ok('logout',{});assert.equal((await request('bootstrap')).status,401);pass('Sign out revokes session');
  console.log(JSON.stringify({passed:checks},null,2));
 }finally{await sql.end();await server.stop();await db.close()}

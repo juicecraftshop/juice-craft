@@ -6,13 +6,19 @@ function loadBillFonts(){
   return {file,style,data:btoa(binary)};
  })).catch(e=>{fontPromise=undefined;throw e}));
 }
-export async function prepareBillDownload(){await Promise.all([import('jspdf'),loadBillFonts()])}
+async function billLogoPng(){
+ const img=new Image();img.src=import.meta.env.BASE_URL+'juicecraft-brand.webp';await img.decode();
+ const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+ const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Unable to prepare bill logo');ctx.drawImage(img,0,0);
+ return canvas.toDataURL('image/png');
+}
+export async function prepareBillDownload(){await Promise.all([import('jspdf'),loadBillFonts(),billLogoPng()])}
 export async function downloadBill(b:any){
 const {jsPDF}=await import('jspdf');
 const doc=new jsPDF({unit:'mm',format:'a5',compress:true,putOnlyUsedFonts:true});
 for(const {file,style,data} of await loadBillFonts()){doc.addFileToVFS(file,data);doc.addFont(file,'CraftSans',style)}doc.setFont('CraftSans','normal');const w=148,margin=14;let y=16;const green:[number,number,number]=[21,26,31],muted:[number,number,number]=[90,94,98];
 const text=(s:string,x:number,yy:number,size=10,color=green,align:any='left')=>{doc.setFontSize(size);doc.setTextColor(...color);doc.text(s,x,yy,{align})};
-doc.setDrawColor(233,197,103);doc.setFillColor(245,200,66);doc.roundedRect(w/2-11,y,22,22,4,4,'F');doc.setFont('CraftSans','bold');text('JC',w/2,y+15,20,green,'center');y+=32;
+doc.addImage(await billLogoPng(),'PNG',w/2-11,y,22,22);y+=32;
 doc.setFont('CraftSans','bold');const title=doc.splitTextToSize(b.shop.name,120);text(title,w/2,y,19,green,'center');y+=title.length*7;doc.setFont('CraftSans','normal');text('JUICES  /  SHAKES  /  ICE POPS',w/2,y,7,muted,'center');y+=7;
 for(const line of [b.shop.address,b.shop.phone].filter(Boolean)){const ls=doc.splitTextToSize(line,115);text(ls,w/2,y,9,muted,'center');y+=ls.length*4.5}
 y+=6;doc.setDrawColor(233,197,103);doc.line(margin,y,w-margin,y);y+=8;doc.setFont('CraftSans','bold');text('JC-'+String(b.number).padStart(6,'0'),margin,y,10);doc.setFont('CraftSans','normal');text(new Date(b.date+'T12:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),w-margin,y,9,muted,'right');y+=8;

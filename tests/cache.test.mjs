@@ -64,3 +64,9 @@ test('incremental save merges changed items and opens receipt without catalogue 
  assert.equal(boot.products.find(p=>p.id==='p').qty,7);assert.equal(boot.products.find(p=>p.id==='q').qty,0);
  assert.equal((await api('bill&id=delta-bill')).id,'delta-bill');assert.equal(calls,2);
 });
+
+test('item save merges only affected rows and deletion needs no catalogue request',async()=>{
+ storage.set('jc_session','item-delta');clearReadCache();let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({products:[{id:'p',name:'Item',active:1},{id:'q',name:'Other',active:1}],masters:[]})};await api('bootstrap');
+ globalThis.fetch=async()=>{calls++;return Response.json({ok:true,products:[{id:'p',name:'Item',active:-1}],masters:[{id:'c',name:'Uncategorized'}]})};await api('product',{id:'p',delete:true});const boot=await api('bootstrap');assert.equal(calls,2);assert.deepEqual(boot.products.map(p=>p.id),['q']);assert.equal(boot.masters[0].id,'c');
+});

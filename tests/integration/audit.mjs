@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {context,password} from '../../supabase/functions/juicecraft-shop/server.ts';
 import {GET,POST} from '../../supabase/functions/juicecraft-shop/routes.ts';
-import {bootstrapData,billData,changedProducts} from '../../supabase/functions/juicecraft-shop/snapshot.ts';
+import {bootstrapData,billData,changedProducts,productMasters} from '../../supabase/functions/juicecraft-shop/snapshot.ts';
 const db=await PGlite.create();await db.exec('create role anon; create role authenticated;');
 await db.exec(fs.readFileSync(new URL('../../supabase/schema/juicecraft.sql',import.meta.url),'utf8'));
 await db.exec(fs.readFileSync(new URL('../../supabase/migrations/20261014160000_query_indexes.sql',import.meta.url),'utf8'));
@@ -14,7 +14,7 @@ const sql=postgres({host:'127.0.0.1',port:55432,user:'postgres',database:'postgr
 const temp='Local-Audit-Password-Only-1';await sql`INSERT INTO juicecraft.admin(id,hash,changed) VALUES(1,${await password(temp)},0)`;
 let session='';const checks=[];const pass=n=>{checks.push(n);console.log('PASS',n)};
 class Rejected extends Error{constructor(result){super();this.result=result}}
-async function request(action,data){const req=new Request('https://test.local/?action='+action,{method:data?'POST':'GET',headers:{'content-type':'application/json','x-shop-session':session,Origin:'https://juicecraft.vercel.app'},body:data?JSON.stringify({action,...data}):undefined});try{return await sql.begin(async tx=>{await tx.unsafe("SET LOCAL ROLE juicecraft_app;SET LOCAL search_path TO juicecraft,pg_catalog;SET LOCAL statement_timeout TO '15s'");if(data)await tx`SELECT pg_advisory_xact_lock(748290153)`;return context.run(tx,async()=>{const r=await(data?POST(req):GET(req));const body=await r.json();if(!r.ok&&action!=='login')throw new Rejected({status:r.status,body});if(r.ok&&['product','stock','sale','wastage','adjustment'].includes(action))return{status:r.status,body:{...body,products:await changedProducts(action,data,body.id),...(action==='sale'?{bill:await billData(body.id)}:{})}};return{status:r.status,body}})})}catch(e){if(e instanceof Rejected)return e.result;throw e}}
+async function request(action,data){const req=new Request('https://test.local/?action='+action,{method:data?'POST':'GET',headers:{'content-type':'application/json','x-shop-session':session,Origin:'https://juicecraft.vercel.app'},body:data?JSON.stringify({action,...data}):undefined});try{return await sql.begin(async tx=>{await tx.unsafe("SET LOCAL ROLE juicecraft_app;SET LOCAL search_path TO juicecraft,pg_catalog;SET LOCAL statement_timeout TO '15s'");if(data)await tx`SELECT pg_advisory_xact_lock(748290153)`;return context.run(tx,async()=>{const r=await(data?POST(req):GET(req));const body=await r.json();if(!r.ok&&action!=='login')throw new Rejected({status:r.status,body});if(r.ok&&['product','stock','sale','wastage','adjustment'].includes(action))return{status:r.status,body:{...body,products:await changedProducts(action,data,body.id),...(action==='product'?{masters:await productMasters(body.id)}:{}),...(action==='sale'?{bill:await billData(body.id)}:{})}};return{status:r.status,body}})})}catch(e){if(e instanceof Rejected)return e.result;throw e}}
 async function ok(a,b){const r=await request(a,b);assert.equal(r.status,200,JSON.stringify(r));return r.body}
 try{
  assert.equal((await request('bootstrap')).status,401);pass('Anonymous access rejected');
@@ -39,6 +39,16 @@ try{
  await ok('adjustment',{key:'adjust-1',product:pkg,qty:16,date:day,note:'Physical count'});assert.equal((await ok('bootstrap')).products.find(p=>p.id===pkg).qty,16);pass('Physical stock adjustment');
  assert.ok(Array.isArray(await ok('export&from='+day+'&to='+day)));pass('Report export');
  const onlyDrink=await ok('sale',{key:'prepared-only',cart:[{id:drink,qty:1}],payment:'Cash',date:day});assert.equal(onlyDrink.bill.total,2000);assert.equal(onlyDrink.bill.lines.length,1);assert.equal((await sql`SELECT count(*) n FROM juicecraft.movements WHERE sale='prepared-only'`)[0].n,0);pass('Prepared-only bill writes lines without stock movements');
+ const oldBill=await ok('bill&id=sale-1');
+ const current=(await ok('bootstrap')).products.find(p=>p.id===pkg);
+ await ok('product',{id:pkg,name:'',price:'25',cost:'8',qty:current.qty,category:'',brand:'',low:''});
+ const edited=(await ok('bootstrap')).products.find(p=>p.id===pkg);assert.equal(edited.price,2500);assert.equal(edited.cost,800);assert.equal(edited.name,current.name);
+ assert.deepEqual(await ok('bill&id=sale-1'),oldBill);
+ await ok('product',{id:pkg,delete:true});assert.ok(!(await ok('bootstrap')).products.some(p=>p.id===pkg));assert.deepEqual(await ok('bill&id=sale-1'),oldBill);
+ assert.equal((await request('sale',{key:'deleted-sale',cart:[{id:pkg,qty:1}],date:day,payment:'Cash'})).status,400);
+ const blank=await ok('product',{key:'blank-product',kind:'packaged',name:'',price:'',cost:'',qty:'',category:'',brand:'',low:''});assert.ok(blank.id);
+ pass('Editable prices, optional fields, delete and historical bill preservation');
+ await ok('product',{id:pkg,delete:true});pass('Repeated delete is safe');
  await ok('logout',{});assert.equal((await request('bootstrap')).status,401);pass('Sign out revokes session');
  console.log(JSON.stringify({passed:checks},null,2));
 }finally{await sql.end();await server.stop();await db.close()}

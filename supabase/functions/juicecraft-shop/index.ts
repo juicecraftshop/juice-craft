@@ -1,4 +1,4 @@
-import {bootstrapData,billData,changedProducts} from './snapshot.ts';
+import {bootstrapData,billData,changedProducts,productMasters} from './snapshot.ts';
 import {allowedOrigin} from './origins.ts';
 import postgres from 'npm:postgres@3.4.7';
 import {context,response} from './server.ts';
@@ -19,7 +19,7 @@ Deno.serve(async(req:Request)=>{
    await tx.unsafe("SET LOCAL ROLE juicecraft_app; SET LOCAL search_path TO juicecraft, pg_catalog; SET LOCAL statement_timeout TO '15s'");
    // Serialize writes so stock checks, bill numbers, idempotency and writes are atomic.
    if(req.method==='POST')await tx`SELECT pg_advisory_xact_lock(748290153)`;
-   return await context.run(tx,async()=>{const r=await(req.method==='POST'?POST(req):GET(req));if(r.status>=400&&action!=='login')throw new Rejected(r);if(r.ok&&['product','stock','sale','wastage','adjustment'].includes(action)){const saved=await r.json();return response({...saved,...(new URL(req.url).searchParams.get('incremental')==='1'?{products:await changedProducts(action,payload,saved.id)}:{bootstrap:await bootstrapData()}),...(action==='sale'?{bill:await billData(saved.id)}:{})})}return r});
+   return await context.run(tx,async()=>{const r=await(req.method==='POST'?POST(req):GET(req));if(r.status>=400&&action!=='login')throw new Rejected(r);if(r.ok&&['product','stock','sale','wastage','adjustment'].includes(action)){const saved=await r.json();return response({...saved,...(new URL(req.url).searchParams.get('incremental')==='1'?{products:await changedProducts(action,payload,saved.id),...(action==='product'?{masters:await productMasters(saved.id)}:{})}:{bootstrap:await bootstrapData()}),...(action==='sale'?{bill:await billData(saved.id)}:{})})}return r});
   });
  }catch(e){if(!(e instanceof Rejected))console.error('shop transaction failed',String(e));result=e instanceof Rejected?e.result:response({error:'Could not connect to your shop. Please try again.'},503);}
  const headers=new Headers(result.headers);for(const[k,v]of Object.entries(cors))headers.set(k,v);headers.delete('set-cookie');
